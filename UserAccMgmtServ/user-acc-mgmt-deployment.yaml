@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: useraccmgmtserv
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: useraccmgmtserv
+  template:
+    metadata:
+      labels:
+        app: useraccmgmtserv
+    spec:
+      containers:
+        - name: useraccmgmtserv
+          image: your-dockerhub-username/useraccmgmtserv:latest  # Replace with your Docker image name
+          ports:
+            - containerPort: 3005
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: useraccmgmtserv
+spec:
+  selector:
+    app: useraccmgmtserv
+  ports:
+    - protocol: TCP
+      port: 3005
+      targetPort: 3005
+  type: ClusterIP

@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: usagemntrserv
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: usagemntrserv
+  template:
+    metadata:
+      labels:
+        app: usagemntrserv
+    spec:
+      containers:
+        - name: usagemntrserv
+          image: your-dockerhub-username/usagemntrserv:latest  # Replace with your Docker image name
+          ports:
+            - containerPort: 3002
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: usagemntrserv
+spec:
+  selector:
+    app: usagemntrserv
+  ports:
+    - protocol: TCP
+      port: 3002
+      targetPort: 3002
+  type: ClusterIP
