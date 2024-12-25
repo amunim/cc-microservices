@@ -90,20 +90,20 @@ jobs:
             --allow-unauthenticated \
             --set-env-vars GCS_BUCKET_NAME=cc-project-amunim,USAGE_MONITORING_SERVICE_URL=$URL,MONGO_URI=${{ secrets.MONGO_URI }},JWT_SECRET=${{ secrets.JWT_SECRET }}
 
-            - name: Log Deployed URLs
-            run: |
-              echo "Fetching Deployed Service URLs..."
-              
-              USAGE_MNTR_URL=$(gcloud run services describe usagemntrserv --region ${{ env.REGION }} --platform managed --format="value(status.url)")
-              USER_ACC_MGMT_URL=$(gcloud run services describe useraccmgmtserv --region ${{ env.REGION }} --platform managed --format="value(status.url)")
-              STORAGE_MGMT_URL=$(gcloud run services describe storagemgmtserv --region ${{ env.REGION }} --platform managed --format="value(status.url)")
-              
-              echo "Deployed Service URLs:" > urls.log
-              echo "UsageMntrServ: $USAGE_MNTR_URL" >> urls.log
-              echo "UserAccMgmtServ: $USER_ACC_MGMT_URL" >> urls.log
-              echo "StorageMgmtServ: $STORAGE_MGMT_URL" >> urls.log
-              
-              echo "Deployed Service URLs:"
-              echo "UsageMntrServ: $USAGE_MNTR_URL"
-              echo "UserAccMgmtServ: $USER_ACC_MGMT_URL"
-              echo "StorageMgmtServ: $STORAGE_MGMT_URL"
+      - name: Log Deployed URLs
+        run: |
+          echo "Fetching Deployed Service URLs..."
+          
+          USAGE_MNTR_URL=$(gcloud run services describe usagemntrserv --region ${{ env.REGION }} --platform managed --format="value(status.url)")
+          USER_ACC_MGMT_URL=$(gcloud run services describe useraccmgmtserv --region ${{ env.REGION }} --platform managed --format="value(status.url)")
+          STORAGE_MGMT_URL=$(gcloud run services describe storagemgmtserv --region ${{ env.REGION }} --platform managed --format="value(status.url)")
+          
+          echo "Deployed Service URLs:" > urls.log
+          echo "UsageMntrServ: $USAGE_MNTR_URL" >> urls.log
+          echo "UserAccMgmtServ: $USER_ACC_MGMT_URL" >> urls.log
+          echo "StorageMgmtServ: $STORAGE_MGMT_URL" >> urls.log
+          
+          echo "Deployed Service URLs:"
+          echo "UsageMntrServ: $USAGE_MNTR_URL"
+          echo "UserAccMgmtServ: $USER_ACC_MGMT_URL"
+          echo "StorageMgmtServ: $STORAGE_MGMT_URL"
