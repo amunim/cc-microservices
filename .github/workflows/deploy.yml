@@ -12,6 +12,8 @@ jobs:
     env:
       PROJECT_ID: gold-obelisk-445820-s5
       REGION: us-central1
+      REPO_HOST: us-central1-docker.pkg.dev
+      REPO_NAME: us-docker-repo
 
     steps:
       - name: Checkout Code
@@ -28,17 +30,22 @@ jobs:
           project_id: ${{ env.PROJECT_ID }}
           export_default_credentials: true
 
+      - name: Authenticate Docker with Artifact Registry
+        run: |
+          echo "Authenticating Docker with Artifact Registry..."
+          gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://${{ env.REPO_HOST }}
+
       - name: Build and Push Docker Image for UsageMntrServ
         run: |
           echo "Building and pushing Docker image for UsageMntrServ..."
-          docker build -t gcr.io/${{ env.PROJECT_ID }}/usagemntrserv ./UsageMntrServ
-          docker push gcr.io/${{ env.PROJECT_ID }}/usagemntrserv
+          docker build -t ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/usagemntrserv ./UsageMntrServ
+          docker push ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/usagemntrserv
 
       - name: Deploy UsageMntrServ
         run: |
           echo "Deploying UsageMntrServ..."
           gcloud run deploy usagemntrserv \
-            --image gcr.io/${{ env.PROJECT_ID }}/usagemntrserv \
+            --image ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/usagemntrserv \
             --platform managed \
             --region ${{ env.REGION }} \
             --allow-unauthenticated \
@@ -54,14 +61,14 @@ jobs:
       - name: Build and Push Docker Image for UserAccMgmtServ
         run: |
           echo "Building and pushing Docker image for UserAccMgmtServ..."
-          docker build -t gcr.io/${{ env.PROJECT_ID }}/useraccmgmtserv ./UserAccMgmtServ
-          docker push gcr.io/${{ env.PROJECT_ID }}/useraccmgmtserv
+          docker build -t ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/useraccmgmtserv ./UserAccMgmtServ
+          docker push ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/useraccmgmtserv
 
       - name: Deploy UserAccMgmtServ
         run: |
           echo "Deploying UserAccMgmtServ..."
           gcloud run deploy useraccmgmtserv \
-            --image gcr.io/${{ env.PROJECT_ID }}/useraccmgmtserv \
+            --image ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/useraccmgmtserv \
             --platform managed \
             --region ${{ env.REGION }} \
             --allow-unauthenticated \
@@ -70,14 +77,14 @@ jobs:
       - name: Build and Push Docker Image for StorageMgmtServ
         run: |
           echo "Building and pushing Docker image for StorageMgmtServ..."
-          docker build -t gcr.io/${{ env.PROJECT_ID }}/storagemgmtserv ./StorageMgmtServ
-          docker push gcr.io/${{ env.PROJECT_ID }}/storagemgmtserv
+          docker build -t ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/storagemgmtserv ./StorageMgmtServ
+          docker push ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/storagemgmtserv
 
       - name: Deploy StorageMgmtServ
         run: |
           echo "Deploying StorageMgmtServ..."
           gcloud run deploy storagemgmtserv \
-            --image gcr.io/${{ env.PROJECT_ID }}/storagemgmtserv \
+            --image ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/storagemgmtserv \
             --platform managed \
             --region ${{ env.REGION }} \
             --allow-unauthenticated \
