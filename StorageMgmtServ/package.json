@@ -2,10 +2,10 @@
     "name": "storage-mgmt-service",
     "version": "1.0.0",
     "description": "A microservice for managing user video storage using Google Cloud Storage and MongoDB.",
-    "main": "server.js",
+    "main": "index.js",
     "scripts": {
-        "start": "node server.js",
-        "dev": "nodemon server.js"
+        "start": "node index.js",
+        "dev": "nodemon index.js"
     },
     "dependencies": {
         "@google-cloud/storage": "^7.14.0",

@@ -1,5 +1,5 @@
 {
-  "name": "useraccmgmtserv",
+  "name": "usagemntrserv",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -9,10 +9,9 @@
     "dev": "nodemon index.js"
   },
   "keywords": [],
-  "author": "amunim",
+  "author": "",
   "license": "ISC",
   "dependencies": {
-    "bcrypt": "^5.1.1",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",

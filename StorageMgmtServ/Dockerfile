@@ -1,20 +1,23 @@
-# Use Node.js official image as base
-FROM node:18
+# Use the official Node.js image as the base
+FROM node:16
 
-# Set the working directory inside the container
-WORKDIR /usr/src/app
+# Install ffmpeg
+RUN apt-get update && apt-get install -y ffmpeg
 
-# Copy the package.json and package-lock.json (if present)
+# Set the working directory
+WORKDIR /app
+
+# Copy package.json and package-lock.json into the container
 COPY package*.json ./
 
-# Install the dependencies
+# Install dependencies
 RUN npm install
 
-# Copy the rest of the application files
+# Copy the rest of the application code into the container
 COPY . .
 
-# Expose the port the app will run on
+# Expose the port the app runs on
 EXPOSE 3001
 
-# Command to run the app
-CMD ["node", "server.js"]
+# Command to run the application
+CMD ["node", "index.js"]

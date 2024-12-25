@@ -12,7 +12,8 @@ require('dotenv').config();
 const app = express();
 app.use(express.json());
 const upload = multer({ dest: 'uploads/', limits: { fileSize: 50 * 1024 * 1024 } }); // Limit file size to 50MB
-const storage = new Storage({ keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS });
+// const storage = new Storage({ keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS });
+const storage = new Storage();
 const bucketName = process.env.GCS_BUCKET_NAME;
 
 // Connect to MongoDB
@@ -49,7 +50,7 @@ const authenticate = (req, res, next) => {
 const checkBandwidth = async (req, res, next) => {
     try {
         const response = await axios.get(
-            `${process.env.USAGE_MONITORING_SERVICE_URL}/usage`, 
+            `${process.env.USAGE_MONITORING_SERVICE_URL}/usage`,
             { headers: { Authorization: req.headers['authorization'] } }
         );
 
