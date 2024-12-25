@@ -20,6 +20,7 @@ const userSchema = new mongoose.Schema({
     phone: { type: String, required: true, unique: true },
     email: { type: String, required: true, unique: true },
 });
+
 const User = mongoose.model('User', userSchema);
 
 // Register endpoint
@@ -37,6 +38,18 @@ app.post('/register', async (req, res) => {
         await newUser.save();
         res.status(201).json({ message: 'User registered successfully' });
     } catch (error) {
+        if (error.code === 11000) {
+            // Handle duplicate key error
+            if (error.keyValue.username) {
+                return res.status(400).json({ error: 'Username is already taken' });
+            }
+            if (error.keyValue.phone) {
+                return res.status(400).json({ error: 'Phone number is already registered' });
+            }
+            if (error.keyValue.email) {
+                return res.status(400).json({ error: 'Email is already registered' });
+            }
+        }
         console.error('Error registering user:', error);
         res.status(500).json({ error: 'Failed to register user' });
     }
