@@ -1,0 +1,91 @@
+name: Deploy Microservices
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      PROJECT_ID: gold-obelisk-445820-s5
+      REGION: us-central1
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          export_default_credentials: true
+
+      - name: Build and Push Docker Image for UsageMntrServ
+        run: |
+          echo "Building and pushing Docker image for UsageMntrServ..."
+          docker build -t gcr.io/${{ env.PROJECT_ID }}/usagemntrserv ./UsageMntrServ
+          docker push gcr.io/${{ env.PROJECT_ID }}/usagemntrserv
+
+      - name: Deploy UsageMntrServ
+        run: |
+          echo "Deploying UsageMntrServ..."
+          gcloud run deploy usagemntrserv \
+            --image gcr.io/${{ env.PROJECT_ID }}/usagemntrserv \
+            --platform managed \
+            --region ${{ env.REGION }} \
+            --allow-unauthenticated \
+            --set-env-vars MONGO_URI=${{ secrets.MONGO_URI }},JWT_SECRET=${{ secrets.JWT_SECRET }}
+
+      - name: Get UsageMntrServ URL
+        id: usagemntrserv_url
+        run: |
+          URL=$(gcloud run services describe usagemntrserv --region ${{ env.REGION }} --format "value(status.url)")
+          echo "URL=$URL" >> $GITHUB_ENV
+          echo "UsageMntrServ URL: $URL"
+
+      - name: Build and Push Docker Image for UserAccMgmtServ
+        run: |
+          echo "Building and pushing Docker image for UserAccMgmtServ..."
+          docker build -t gcr.io/${{ env.PROJECT_ID }}/useraccmgmtserv ./UserAccMgmtServ
+          docker push gcr.io/${{ env.PROJECT_ID }}/useraccmgmtserv
+
+      - name: Deploy UserAccMgmtServ
+        run: |
+          echo "Deploying UserAccMgmtServ..."
+          gcloud run deploy useraccmgmtserv \
+            --image gcr.io/${{ env.PROJECT_ID }}/useraccmgmtserv \
+            --platform managed \
+            --region ${{ env.REGION }} \
+            --allow-unauthenticated \
+            --set-env-vars MONGO_URI=${{ secrets.MONGO_URI }},JWT_SECRET=${{ secrets.JWT_SECRET }}
+
+      - name: Build and Push Docker Image for StorageMgmtServ
+        run: |
+          echo "Building and pushing Docker image for StorageMgmtServ..."
+          docker build -t gcr.io/${{ env.PROJECT_ID }}/storagemgmtserv ./StorageMgmtServ
+          docker push gcr.io/${{ env.PROJECT_ID }}/storagemgmtserv
+
+      - name: Deploy StorageMgmtServ
+        run: |
+          echo "Deploying StorageMgmtServ..."
+          gcloud run deploy storagemgmtserv \
+            --image gcr.io/${{ env.PROJECT_ID }}/storagemgmtserv \
+            --platform managed \
+            --region ${{ env.REGION }} \
+            --allow-unauthenticated \
+            --set-env-vars GCS_BUCKET_NAME=cc-project-amunim,USAGE_MONITORING_SERVICE_URL=$URL,MONGO_URI=${{ secrets.MONGO_URI }},JWT_SECRET=${{ secrets.JWT_SECRET }}
+
+      - name: Log Deployed URLs
+        run: |
+          echo "Deployed Service URLs:"
+          echo "UsageMntrServ: ${{ steps.usagemntrserv_url.outputs.URL }}"
+          echo "UserAccMgmtServ: $(gcloud run services describe useraccmgmtserv --region ${{ env.REGION }} --format "value(status.url"))"
+          echo "StorageMgmtServ: $(gcloud run services describe storagemgmtserv --region ${{ env.REGION }} --format "value(status.url"))"
