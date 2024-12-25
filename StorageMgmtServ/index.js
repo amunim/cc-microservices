@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const { Storage } = require('@google-cloud/storage');
 const ffmpeg = require('fluent-ffmpeg');
+const fs = require('fs');
 const { unlink } = require('fs/promises');
 const { promisify } = require('util');
 const mongoose = require('mongoose');
@@ -13,8 +14,8 @@ const PORT = process.env.PORT || 3001
 const app = express();
 app.use(express.json());
 const upload = multer({ dest: 'uploads/', limits: { fileSize: 50 * 1024 * 1024 } }); // Limit file size to 50MB
-// const storage = new Storage({ keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS });
-const storage = new Storage();
+const storage = new Storage({ keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS });
+// const storage = new Storage();
 const bucketName = process.env.GCS_BUCKET_NAME;
 
 // Connect to MongoDB
@@ -105,6 +106,11 @@ app.post('/upload', authenticate, checkBandwidth, upload.single('video'), async 
         const destination = `${file.filename}-compressed.mp4`;
         await storage.bucket(bucketName).upload(outputPath, {
             destination,
+            gzip: true,
+            metadata: {
+                cacheControl: 'public, max-age=31536000'
+            },
+            public: true,
         });
         const publicUrl = `https://storage.googleapis.com/${bucketName}/${destination}`;
 
