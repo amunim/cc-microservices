@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
   deploy:
@@ -56,6 +59,7 @@ jobs:
         run: |
           URL=$(gcloud run services describe usagemntrserv --region ${{ env.REGION }} --format "value(status.url)")
           echo "URL=$URL" >> $GITHUB_ENV
+          echo "::set-output name=usagemntr_url::$URL"
           echo "UsageMntrServ URL: $URL"
 
       - name: Build and Push Docker Image for UserAccMgmtServ
@@ -90,13 +94,17 @@ jobs:
             --allow-unauthenticated \
             --set-env-vars GCS_BUCKET_NAME=cc-project-amunim,USAGE_MONITORING_SERVICE_URL=$URL,MONGO_URI=${{ secrets.MONGO_URI }},JWT_SECRET=${{ secrets.JWT_SECRET }}
 
-      - name: Log Deployed URLs
+      - name: Log and Update PR with Deployed URLs
         run: |
           echo "Fetching Deployed Service URLs..."
           
           USAGE_MNTR_URL=$(gcloud run services describe usagemntrserv --region ${{ env.REGION }} --platform managed --format="value(status.url)")
           USER_ACC_MGMT_URL=$(gcloud run services describe useraccmgmtserv --region ${{ env.REGION }} --platform managed --format="value(status.url)")
           STORAGE_MGMT_URL=$(gcloud run services describe storagemgmtserv --region ${{ env.REGION }} --platform managed --format="value(status.url)")
+          
+          echo "::set-output name=usage_mntr_url::$USAGE_MNTR_URL"
+          echo "::set-output name=user_acc_mgmt_url::$USER_ACC_MGMT_URL"
+          echo "::set-output name=storage_mgmt_url::$STORAGE_MGMT_URL"
           
           echo "Deployed Service URLs:" > urls.log
           echo "UsageMntrServ: $USAGE_MNTR_URL" >> urls.log
@@ -107,3 +115,8 @@ jobs:
           echo "UsageMntrServ: $USAGE_MNTR_URL"
           echo "UserAccMgmtServ: $USER_ACC_MGMT_URL"
           echo "StorageMgmtServ: $STORAGE_MGMT_URL"
+
+          if [[ $GITHUB_EVENT_NAME == "pull_request" ]]; then
+            COMMENT_BODY="### Deployed URLs\n- [UsageMntrServ]($USAGE_MNTR_URL)\n- [UserAccMgmtServ]($USER_ACC_MGMT_URL)\n- [StorageMgmtServ]($STORAGE_MGMT_URL)"
+            echo "$COMMENT_BODY" | gh pr comment ${{ github.event.pull_request.number }} --body -
+          fi
