@@ -5,6 +5,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
+const PORT = process.env.PORT || 3005
 const app = express();
 app.use(express.json());
 
@@ -99,4 +100,4 @@ app.patch('/update-password', authenticate, async (req, res) => {
     }
 });
 
-app.listen(3005, () => console.log('UserAccMgmtServ running on port 3005'));
+app.listen(PORT, () => console.log('UserAccMgmtServ running on port 3005'));

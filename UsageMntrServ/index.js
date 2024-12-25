@@ -3,8 +3,10 @@ const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
+const PORT = process.env.PORT || 3002
 const app = express();
 app.use(express.json());
+
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
@@ -129,4 +131,4 @@ app.get('/usage', authenticate, async (req, res) => {
     }
 });
 
-app.listen(3002, () => console.log('UsageMntrServ running on port 3002'));
+app.listen(PORT, () => console.log('UsageMntrServ running on port 3002'));

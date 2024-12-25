@@ -9,6 +9,7 @@ const jwt = require('jsonwebtoken');
 const axios = require('axios');
 require('dotenv').config();
 
+const PORT = process.env.PORT || 3001
 const app = express();
 app.use(express.json());
 const upload = multer({ dest: 'uploads/', limits: { fileSize: 50 * 1024 * 1024 } }); // Limit file size to 50MB
@@ -206,4 +207,4 @@ app.patch('/videos/:id', authenticate, async (req, res) => {
     }
 });
 
-app.listen(3001, () => console.log('StorageMgmtServ running on port 3001'));
+app.listen(PORT, () => console.log('StorageMgmtServ running on port 3001'));
