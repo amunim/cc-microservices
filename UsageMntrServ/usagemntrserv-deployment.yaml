@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: usagemntrserv
-        image: us-central1-docker.pkg.dev/gold-obelisk-445820-s5/us-docker-repo/usagemntrserv:latest
+        image: "{{IMAGE}}"
         ports:
         - containerPort: 3000
         env:

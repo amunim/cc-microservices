@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: storagemgmtserv
-        image: us-central1-docker.pkg.dev/gold-obelisk-445820-s5/us-docker-repo/storagemgmtserv:latest
+        image: "{{IMAGE}}"
         ports:
         - containerPort: 3001
         env:

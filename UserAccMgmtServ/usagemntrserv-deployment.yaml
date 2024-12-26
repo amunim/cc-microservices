@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: useraccmgmtserv
-        image: us-central1-docker.pkg.dev/gold-obelisk-445820-s5/us-docker-repo/useraccmgmtserv:latest
+        image: "{{IMAGE}}"
         ports:
         - containerPort: 3005
         env:
