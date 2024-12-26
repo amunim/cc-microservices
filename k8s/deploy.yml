@@ -1,0 +1,122 @@
+name: Deploy Microservices
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      PROJECT_ID: gold-obelisk-445820-s5
+      REGION: us-central1
+      REPO_HOST: us-central1-docker.pkg.dev
+      REPO_NAME: us-docker-repo
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          export_default_credentials: true
+
+      - name: Authenticate Docker with Artifact Registry
+        run: |
+          echo "Authenticating Docker with Artifact Registry..."
+          gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://${{ env.REPO_HOST }}
+
+      - name: Build and Push Docker Image for UsageMntrServ
+        run: |
+          echo "Building and pushing Docker image for UsageMntrServ..."
+          docker build -t ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/usagemntrserv ./UsageMntrServ
+          docker push ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/usagemntrserv
+
+      - name: Deploy UsageMntrServ
+        run: |
+          echo "Deploying UsageMntrServ..."
+          gcloud run deploy usagemntrserv \
+            --image ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/usagemntrserv \
+            --platform managed \
+            --region ${{ env.REGION }} \
+            --allow-unauthenticated \
+            --set-env-vars MONGO_URI=${{ secrets.MONGO_URI }},JWT_SECRET=${{ secrets.JWT_SECRET }}
+
+      - name: Get UsageMntrServ URL
+        id: usagemntrserv_url
+        run: |
+          URL=$(gcloud run services describe usagemntrserv --region ${{ env.REGION }} --format "value(status.url)")
+          echo "URL=$URL" >> $GITHUB_ENV
+          echo "::set-output name=usagemntr_url::$URL"
+          echo "UsageMntrServ URL: $URL"
+
+      - name: Build and Push Docker Image for UserAccMgmtServ
+        run: |
+          echo "Building and pushing Docker image for UserAccMgmtServ..."
+          docker build -t ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/useraccmgmtserv ./UserAccMgmtServ
+          docker push ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/useraccmgmtserv
+
+      - name: Deploy UserAccMgmtServ
+        run: |
+          echo "Deploying UserAccMgmtServ..."
+          gcloud run deploy useraccmgmtserv \
+            --image ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/useraccmgmtserv \
+            --platform managed \
+            --region ${{ env.REGION }} \
+            --allow-unauthenticated \
+            --set-env-vars MONGO_URI=${{ secrets.MONGO_URI }},JWT_SECRET=${{ secrets.JWT_SECRET }}
+
+      - name: Build and Push Docker Image for StorageMgmtServ
+        run: |
+          echo "Building and pushing Docker image for StorageMgmtServ..."
+          docker build -t ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/storagemgmtserv ./StorageMgmtServ
+          docker push ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/storagemgmtserv
+
+      - name: Deploy StorageMgmtServ
+        run: |
+          echo "Deploying StorageMgmtServ..."
+          gcloud run deploy storagemgmtserv \
+            --image ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/storagemgmtserv \
+            --platform managed \
+            --region ${{ env.REGION }} \
+            --allow-unauthenticated \
+            --set-env-vars GCS_BUCKET_NAME=cc-project-amunim,USAGE_MONITORING_SERVICE_URL=$URL,MONGO_URI=${{ secrets.MONGO_URI }},JWT_SECRET=${{ secrets.JWT_SECRET }}
+
+      - name: Log and Update PR with Deployed URLs
+        run: |
+          echo "Fetching Deployed Service URLs..."
+          
+          USAGE_MNTR_URL=$(gcloud run services describe usagemntrserv --region ${{ env.REGION }} --platform managed --format="value(status.url)")
+          USER_ACC_MGMT_URL=$(gcloud run services describe useraccmgmtserv --region ${{ env.REGION }} --platform managed --format="value(status.url)")
+          STORAGE_MGMT_URL=$(gcloud run services describe storagemgmtserv --region ${{ env.REGION }} --platform managed --format="value(status.url)")
+          
+          echo "::set-output name=usage_mntr_url::$USAGE_MNTR_URL"
+          echo "::set-output name=user_acc_mgmt_url::$USER_ACC_MGMT_URL"
+          echo "::set-output name=storage_mgmt_url::$STORAGE_MGMT_URL"
+          
+          echo "Deployed Service URLs:" > urls.log
+          echo "UsageMntrServ: $USAGE_MNTR_URL" >> urls.log
+          echo "UserAccMgmtServ: $USER_ACC_MGMT_URL" >> urls.log
+          echo "StorageMgmtServ: $STORAGE_MGMT_URL" >> urls.log
+          
+          echo "Deployed Service URLs:"
+          echo "UsageMntrServ: $USAGE_MNTR_URL"
+          echo "UserAccMgmtServ: $USER_ACC_MGMT_URL"
+          echo "StorageMgmtServ: $STORAGE_MGMT_URL"
+
+          if [[ $GITHUB_EVENT_NAME == "pull_request" ]]; then
+            COMMENT_BODY="### Deployed URLs\n- [UsageMntrServ]($USAGE_MNTR_URL)\n- [UserAccMgmtServ]($USER_ACC_MGMT_URL)\n- [StorageMgmtServ]($STORAGE_MGMT_URL)"
+            echo "$COMMENT_BODY" | gh pr comment ${{ github.event.pull_request.number }} --body -
+          fi

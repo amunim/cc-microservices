@@ -1,4 +1,4 @@
-name: Deploy Microservices
+name: Deploy Microservices to Kubernetes
 
 on:
   push:
@@ -15,8 +15,7 @@ jobs:
     env:
       PROJECT_ID: gold-obelisk-445820-s5
       REGION: us-central1
-      REPO_HOST: us-central1-docker.pkg.dev
-      REPO_NAME: us-docker-repo
+      KUBECONFIG_PATH: /tmp/kubeconfig
 
     steps:
       - name: Checkout Code
@@ -33,74 +32,65 @@ jobs:
           project_id: ${{ env.PROJECT_ID }}
           export_default_credentials: true
 
-      - name: Authenticate Docker with Artifact Registry
+      - name: Configure Kubernetes Access
         run: |
-          echo "Authenticating Docker with Artifact Registry..."
-          gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://${{ env.REPO_HOST }}
+          echo "Configuring Kubernetes access..."
+          gcloud container clusters get-credentials microservices-cluster --region ${{ env.REGION }} --project ${{ env.PROJECT_ID }}
 
-      - name: Build and Push Docker Image for UsageMntrServ
+      - name: Deploy Secrets to Kubernetes
         run: |
-          echo "Building and pushing Docker image for UsageMntrServ..."
-          docker build -t ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/usagemntrserv ./UsageMntrServ
-          docker push ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/usagemntrserv
+          echo "Deploying secrets..."
+          kubectl create secret generic service-secrets \
+            --from-literal=mongo-uri=${{ secrets.MONGO_URI }} \
+            --from-literal=jwt-secret=${{ secrets.JWT_SECRET }} \
+            --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy UsageMntrServ
         run: |
           echo "Deploying UsageMntrServ..."
-          gcloud run deploy usagemntrserv \
-            --image ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/usagemntrserv \
-            --platform managed \
-            --region ${{ env.REGION }} \
-            --allow-unauthenticated \
-            --set-env-vars MONGO_URI=${{ secrets.MONGO_URI }},JWT_SECRET=${{ secrets.JWT_SECRET }}
+          kubectl apply -f UsageMntrServ/usagemntrserv-deployment.yaml
+          kubectl apply -f UsageMntrServ/usagemntrserv-service.yaml
 
-      - name: Get UsageMntrServ URL
+      - name: Get UsageMntrServ External URL
         id: usagemntrserv_url
         run: |
-          URL=$(gcloud run services describe usagemntrserv --region ${{ env.REGION }} --format "value(status.url)")
-          echo "URL=$URL" >> $GITHUB_ENV
-          echo "::set-output name=usagemntr_url::$URL"
-          echo "UsageMntrServ URL: $URL"
-
-      - name: Build and Push Docker Image for UserAccMgmtServ
-        run: |
-          echo "Building and pushing Docker image for UserAccMgmtServ..."
-          docker build -t ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/useraccmgmtserv ./UserAccMgmtServ
-          docker push ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/useraccmgmtserv
+          echo "Fetching external URL for UsageMntrServ..."
+          USAGE_MNTR_URL=$(kubectl get svc usagemntrserv -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          echo "USAGE_MNTR_URL=http://$USAGE_MNTR_URL" >> $GITHUB_ENV
+          echo "::set-output name=usagemntr_url::$USAGE_MNTR_URL"
 
       - name: Deploy UserAccMgmtServ
         run: |
           echo "Deploying UserAccMgmtServ..."
-          gcloud run deploy useraccmgmtserv \
-            --image ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/useraccmgmtserv \
-            --platform managed \
-            --region ${{ env.REGION }} \
-            --allow-unauthenticated \
-            --set-env-vars MONGO_URI=${{ secrets.MONGO_URI }},JWT_SECRET=${{ secrets.JWT_SECRET }}
+          kubectl apply -f UserAccMgmtServ/useraccmgmtserv-deployment.yaml
+          kubectl apply -f UserAccMgmtServ/useraccmgmtserv-service.yaml
 
-      - name: Build and Push Docker Image for StorageMgmtServ
-        run: |
-          echo "Building and pushing Docker image for StorageMgmtServ..."
-          docker build -t ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/storagemgmtserv ./StorageMgmtServ
-          docker push ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/storagemgmtserv
-
-      - name: Deploy StorageMgmtServ
+      - name: Deploy StorageMgmtServ with UsageMntrServ URL
         run: |
           echo "Deploying StorageMgmtServ..."
-          gcloud run deploy storagemgmtserv \
-            --image ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/storagemgmtserv \
-            --platform managed \
-            --region ${{ env.REGION }} \
-            --allow-unauthenticated \
-            --set-env-vars GCS_BUCKET_NAME=cc-project-amunim,USAGE_MONITORING_SERVICE_URL=$URL,MONGO_URI=${{ secrets.MONGO_URI }},JWT_SECRET=${{ secrets.JWT_SECRET }}
+          sed "s|{{USAGE_MNTR_URL}}|${{ env.USAGE_MNTR_URL }}|g" StorageMgmtServ/storagemgmtserv-deployment.yaml | kubectl apply -f -
+          kubectl apply -f StorageMgmtServ/storagemgmtserv-service.yaml
+
+      - name: Deploy Ingress
+        run: |
+          echo "Deploying Ingress..."
+          kubectl apply -f k8s/ingress.yaml
+
+      - name: Get Ingress External IP
+        id: ingress_url
+        run: |
+          echo "Fetching external IP for Ingress..."
+          INGRESS_IP=$(kubectl get ingress microservices-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          echo "INGRESS_IP=http://$INGRESS_IP" >> $GITHUB_ENV
+          echo "::set-output name=ingress_url::$INGRESS_IP"
 
       - name: Log and Update PR with Deployed URLs
         run: |
           echo "Fetching Deployed Service URLs..."
           
-          USAGE_MNTR_URL=$(gcloud run services describe usagemntrserv --region ${{ env.REGION }} --platform managed --format="value(status.url)")
-          USER_ACC_MGMT_URL=$(gcloud run services describe useraccmgmtserv --region ${{ env.REGION }} --platform managed --format="value(status.url)")
-          STORAGE_MGMT_URL=$(gcloud run services describe storagemgmtserv --region ${{ env.REGION }} --platform managed --format="value(status.url)")
+          USAGE_MNTR_URL=$USAGE_MNTR_URL
+          USER_ACC_MGMT_URL=$(kubectl get svc useraccmgmtserv -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          STORAGE_MGMT_URL=$(kubectl get svc storagemgmtserv -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
           
           echo "::set-output name=usage_mntr_url::$USAGE_MNTR_URL"
           echo "::set-output name=user_acc_mgmt_url::$USER_ACC_MGMT_URL"
@@ -108,15 +98,14 @@ jobs:
           
           echo "Deployed Service URLs:" > urls.log
           echo "UsageMntrServ: $USAGE_MNTR_URL" >> urls.log
-          echo "UserAccMgmtServ: $USER_ACC_MGMT_URL" >> urls.log
-          echo "StorageMgmtServ: $STORAGE_MGMT_URL" >> urls.log
+          echo "UserAccMgmtServ: http://$USER_ACC_MGMT_URL" >> urls.log
+          echo "StorageMgmtServ: http://$STORAGE_MGMT_URL" >> urls.log
           
           echo "Deployed Service URLs:"
           echo "UsageMntrServ: $USAGE_MNTR_URL"
-          echo "UserAccMgmtServ: $USER_ACC_MGMT_URL"
-          echo "StorageMgmtServ: $STORAGE_MGMT_URL"
+          echo "UserAccMgmtServ: http://$USER_ACC_MGMT_URL"
+          echo "StorageMgmtServ: http://$STORAGE_MGMT_URL"
 
           if [[ $GITHUB_EVENT_NAME == "pull_request" ]]; then
-            COMMENT_BODY="### Deployed URLs\n- [UsageMntrServ]($USAGE_MNTR_URL)\n- [UserAccMgmtServ]($USER_ACC_MGMT_URL)\n- [StorageMgmtServ]($STORAGE_MGMT_URL)"
+            COMMENT_BODY="### Deployed URLs\n- [UsageMntrServ]($USAGE_MNTR_URL)\n- [UserAccMgmtServ](http://$USER_ACC_MGMT_URL)\n- [StorageMgmtServ](http://$STORAGE_MGMT_URL)"
             echo "$COMMENT_BODY" | gh pr comment ${{ github.event.pull_request.number }} --body -
-          fi

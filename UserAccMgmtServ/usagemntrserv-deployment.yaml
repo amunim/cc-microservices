@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: useraccmgmtserv
+  labels:
+    app: useraccmgmtserv
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: useraccmgmtserv
+  template:
+    metadata:
+      labels:
+        app: useraccmgmtserv
+    spec:
+      containers:
+      - name: useraccmgmtserv
+        image: us-central1-docker.pkg.dev/gold-obelisk-445820-s5/us-docker-repo/useraccmgmtserv:latest
+        ports:
+        - containerPort: 3005
+        env:
+        - name: MONGO_URI
+          valueFrom:
+            secretKeyRef:
+              name: service-secrets
+              key: mongo-uri
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: service-secrets
+              key: jwt-secret

@@ -1,0 +1,31 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: microservices-ingress
+  annotations:
+    kubernetes.io/ingress.class: "gce" # Use GCP's Ingress
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /usagemntrserv
+        pathType: Prefix
+        backend:
+          service:
+            name: usagemntrserv
+            port:
+              number: 80
+      - path: /useraccmgmtserv
+        pathType: Prefix
+        backend:
+          service:
+            name: useraccmgmtserv
+            port:
+              number: 80
+      - path: /storagemgmtserv
+        pathType: Prefix
+        backend:
+          service:
+            name: storagemgmtserv
+            port:
+              number: 80
