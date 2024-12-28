@@ -187,3 +187,4 @@ jobs:
           if [[ $GITHUB_EVENT_NAME == "pull_request" ]]; then
             COMMENT_BODY="### Deployed URLs\n- [UsageMntrServ]($USAGE_MNTR_URL)\n- [UserAccMgmtServ](http://$USER_ACC_MGMT_URL)\n- [StorageMgmtServ](http://$STORAGE_MGMT_URL)"
             echo "$COMMENT_BODY" | gh pr comment ${{ github.event.pull_request.number }} --body -
+          fi
