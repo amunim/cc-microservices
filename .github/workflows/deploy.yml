@@ -39,14 +39,14 @@ jobs:
 
       - name: Build and Push Docker Images
         run: |
-          docker build -t ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/usagemntrserv ./UsageMntrServ
-          docker push ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/usagemntrserv
+          docker build -t ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/usagemntrserv:latest ./UsageMntrServ
+          docker push ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/usagemntrserv:latest
 
-          docker build -t ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/useraccmgmtserv ./UserAccMgmtServ
-          docker push ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/useraccmgmtserv
+          docker build -t ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/useraccmgmtserv:latest ./UserAccMgmtServ
+          docker push ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/useraccmgmtserv:latest
 
-          docker build -t ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/storagemgmtserv ./StorageMgmtServ
-          docker push ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/storagemgmtserv
+          docker build -t ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/storagemgmtserv:latest ./StorageMgmtServ
+          docker push ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/storagemgmtserv:latest
 
   deploy_to_kubernetes:
     runs-on: ubuntu-latest
@@ -93,10 +93,11 @@ jobs:
             --from-literal=jwt-secret=${{ secrets.JWT_SECRET }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Deploy UsageMntrServ
+      - name: Deploy and Restart UsageMntrServ
         run: |
           sed "s|{{IMAGE}}|${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/usagemntrserv:latest|g" UsageMntrServ/usagemntrserv-deployment.yaml | kubectl apply -f -
           kubectl apply -f UsageMntrServ/usagemntrserv-service.yaml
+          kubectl rollout restart deployment/usagemntrserv
 
       - name: Wait for UsageMntrServ External IP
         id: get_usagemntr_url
@@ -112,16 +113,18 @@ jobs:
           fi
           echo "::set-output name=url::http://$USAGE_MNTR_URL"
 
-      - name: Deploy UserAccMgmtServ
+      - name: Deploy and Restart UserAccMgmtServ
         run: |
           sed "s|{{IMAGE}}|${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/useraccmgmtserv:latest|g" UserAccMgmtServ/useraccmgmtserv-deployment.yaml | kubectl apply -f -
           kubectl apply -f UserAccMgmtServ/useraccmgmtserv-service.yaml
+          kubectl rollout restart deployment/useraccmgmtserv
 
-      - name: Deploy StorageMgmtServ with UsageMntrServ URL
+      - name: Deploy and Restart StorageMgmtServ with UsageMntrServ URL
         run: |
           sed "s|{{IMAGE}}|${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/storagemgmtserv:latest|g" StorageMgmtServ/storagemgmtserv-deployment.yaml | \
           sed "s|{{USAGE_MNTR_URL}}|${{ steps.get_usagemntr_url.outputs.url }}|g" | kubectl apply -f -
           kubectl apply -f StorageMgmtServ/storagemgmtserv-service.yaml
+          kubectl rollout restart deployment/storagemgmtserv
 
       - name: Deploy Ingress
         run: |
