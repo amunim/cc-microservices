@@ -153,6 +153,16 @@ jobs:
           fi
 
           for i in {1..30}; do
+            USAGE_MGMT_URL=$(kubectl get svc usagemntrserv -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            if [[ -n "$USAGE_MGMT_URL" ]]; then break; fi
+            sleep 10
+          done
+          if [[ -z "$USAGE_MGMT_URL" ]]; then
+            echo "Error: usagemntrserv IP not assigned after waiting."
+            exit 1
+          fi
+
+          for i in {1..30}; do
             STORAGE_MGMT_URL=$(kubectl get svc storagemgmtserv -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
             if [[ -n "$STORAGE_MGMT_URL" ]]; then break; fi
             sleep 10
@@ -163,6 +173,7 @@ jobs:
           fi
 
           echo "Deployed Service URLs:"
+          echo "UsageMntrServ: http://$USAGE_MNTR_URL"
           echo "UserAccMgmtServ: http://$USER_ACC_MGMT_URL"
           echo "StorageMgmtServ: http://$STORAGE_MGMT_URL"
 
