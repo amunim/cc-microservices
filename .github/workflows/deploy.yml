@@ -153,11 +153,11 @@ jobs:
           fi
 
           for i in {1..30}; do
-            USAGE_MGMT_URL=$(kubectl get svc usagemntrserv -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-            if [[ -n "$USAGE_MGMT_URL" ]]; then break; fi
+            USAGE_MNTR_URL=$(kubectl get svc usagemntrserv -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            if [[ -n "$USAGE_MNTR_URL" ]]; then break; fi
             sleep 10
           done
-          if [[ -z "$USAGE_MGMT_URL" ]]; then
+          if [[ -z "$USAGE_MNTR_URL" ]]; then
             echo "Error: usagemntrserv IP not assigned after waiting."
             exit 1
           fi
