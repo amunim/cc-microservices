@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontendserv
+  labels:
+    app: frontendserv
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontendserv
+  template:
+    metadata:
+      labels:
+        app: frontendserv
+    spec:
+      containers:
+      - name: frontendserv
+        image: "{{IMAGE}}"
+        ports:
+        - containerPort: 80
+        env:
+        - name: REACT_APP_STORAGE_SERVICE_URL
+          value: "{{REACT_APP_STORAGE_SERVICE_URL}}"
+        - name: REACT_APP_USAGE_SERVICE_URL
+          value: "{{REACT_APP_USAGE_SERVICE_URL}}"
+        - name: REACT_APP_USER_SERVICE_URL
+          value: "{{REACT_APP_USER_SERVICE_URL}}"

@@ -2,6 +2,19 @@
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
+## Steps to Deploy
+
+- docker build -t gcr.io/gold-obelisk-445820-s5/frontendserv .
+- docker push gcr.io/gold-obelisk-445820-s5/frontendserv
+- gcloud run deploy frontendserv \
+  --image gcr.io/gold-obelisk-445820-s5/frontendserv \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --set-env-vars REACT_APP_USAGE_SERVICE_URL=<YOUR_MNTRSERVICE>,REACT_APP_USER_SERVICE_URL=<YOUR_USERSERVICE>,REACT_APP_STORAGE_SERVICE_URL=<YOUR_STORAGESERVICE>
+
+
+
 ## Available Scripts
 
 In the project directory, you can run:
