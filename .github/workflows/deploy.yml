@@ -91,7 +91,7 @@ jobs:
             --dry-run=client -o yaml | kubectl apply -f -
           
           # Create a secret for Google Application Credentials
-          echo "${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}" | sed 's/\\n/\/g' > gcp-key.json
+          echo "${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}" > gcp-key.json
           kubectl create secret generic gac-keys --from-file=key.json=gcp-key.json --dry-run=client -o yaml | kubectl apply -f -
           rm gcp-key.json
 
