@@ -1,5 +1,6 @@
 const express = require('express');
 const multer = require('multer');
+const cors = require('cors'); // Import the CORS middleware
 const { Storage } = require('@google-cloud/storage');
 const ffmpeg = require('fluent-ffmpeg');
 const fs = require('fs');
@@ -10,12 +11,17 @@ const jwt = require('jsonwebtoken');
 const axios = require('axios');
 require('dotenv').config();
 
-const PORT = process.env.PORT || 3001
+const PORT = process.env.PORT || 3001;
 const app = express();
+
+// Enable CORS for all routes and origins
+app.use(cors());
+
+// Parse JSON requests
 app.use(express.json());
+
 const upload = multer({ dest: 'uploads/', limits: { fileSize: 50 * 1024 * 1024 } }); // Limit file size to 50MB
 const storage = new Storage({ keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS });
-// const storage = new Storage();
 const bucketName = process.env.GCS_BUCKET_NAME;
 
 // Connect to MongoDB
@@ -75,142 +81,4 @@ const checkBandwidth = async (req, res, next) => {
     }
 };
 
-// Upload endpoint
-app.post('/upload', authenticate, checkBandwidth, upload.single('video'), async (req, res) => {
-    const { file, body } = req;
-    const { title, description } = body; // Get title and description from the request
-
-    if (!file) {
-        return res.status(400).json({ error: 'No file uploaded' });
-    }
-
-    const inputPath = file.path;
-    const outputPath = `uploads/${file.filename}-compressed.mp4`;
-
-    try {
-        // Compress the video
-        await new Promise((resolve, reject) => {
-            ffmpeg(inputPath)
-                .output(outputPath)
-                .videoCodec('libx264')
-                .size('640x360') // Compress to 360p
-                .on('end', resolve)
-                .on('error', reject)
-                .run();
-        });
-
-        // Get the compressed video size
-        const compressedSize = (await promisify(require('fs').stat)(outputPath)).size;
-
-        // Upload to Google Cloud Storage
-        const destination = `${file.filename}-compressed.mp4`;
-        await storage.bucket(bucketName).upload(outputPath, {
-            destination,
-            gzip: true,
-            metadata: {
-                cacheControl: 'public, max-age=31536000'
-            },
-            public: true,
-        });
-        const publicUrl = `https://storage.googleapis.com/${bucketName}/${destination}`;
-
-        // Save metadata to MongoDB, including compressed video size, title, and description
-        const videoMetadata = new Video({
-            username: req.username,
-            originalName: file.originalname,
-            compressedName: destination,
-            size: file.size / (1024 * 1024), // Convert original size to MB
-            compressedSize: compressedSize / (1024 * 1024), // Convert compressed size to MB
-            url: publicUrl,
-            title: title || '',
-            description: description || '',
-            uploadedAt: new Date(),
-        });
-        await videoMetadata.save();
-
-        // Log usage to Usage Monitoring Service (compressed size)
-        await axios.post(
-            `${process.env.USAGE_MONITORING_SERVICE_URL}/log-upload`,
-            { size: compressedSize / (1024 * 1024) }, // Send size in MB
-            { headers: { Authorization: req.headers['authorization'] } }
-        );
-
-        // Clean up temporary files
-        await unlink(inputPath);
-        await unlink(outputPath);
-
-        res.status(200).json({ message: 'File uploaded successfully', url: publicUrl });
-    } catch (error) {
-        console.error('Error processing file:', error);
-        res.status(500).json({ error: 'Failed to upload file' });
-
-        // Clean up in case of errors
-        if (fs.existsSync(inputPath)) await unlink(inputPath);
-        if (fs.existsSync(outputPath)) await unlink(outputPath);
-    }
-});
-
-// Get all videos for a user
-app.get('/videos', authenticate, async (req, res) => {
-    try {
-        const videos = await Video.find({ username: req.username });
-        res.status(200).json(videos);
-    } catch (error) {
-        console.error('Error fetching videos:', error);
-        res.status(500).json({ error: 'Failed to fetch videos' });
-    }
-});
-
-// Get a single video by ID
-app.get('/videos/:id', authenticate, async (req, res) => {
-    try {
-        const video = await Video.findOne({ _id: req.params.id, username: req.username });
-        if (!video) return res.status(404).json({ error: 'Video not found' });
-        res.status(200).json(video);
-    } catch (error) {
-        console.error('Error fetching video:', error);
-        res.status(500).json({ error: 'Failed to fetch video' });
-    }
-});
-
-// Delete a video by ID
-app.delete('/videos/:id', authenticate, async (req, res) => {
-    try {
-        const video = await Video.findOneAndDelete({ _id: req.params.id, username: req.username });
-        if (!video) return res.status(404).json({ error: 'Video not found' });
-
-        // Delete video from GCS
-        await storage.bucket(bucketName).file(video.compressedName).delete();
-
-        // Log usage to Usage Monitoring Service (deletion)
-        await axios.post(
-            `${process.env.USAGE_MONITORING_SERVICE_URL}/log-deletion`,
-            { size: video.compressedSize }, // Send size in MB
-            { headers: { Authorization: req.headers['authorization'] } }
-        );
-
-        res.status(200).json({ message: 'Video deleted successfully' });
-    } catch (error) {
-        console.error('Error deleting video:', error);
-        res.status(500).json({ error: 'Failed to delete video' });
-    }
-});
-
-// Edit video metadata (title and description)
-app.patch('/videos/:id', authenticate, async (req, res) => {
-    const { title, description } = req.body;
-    try {
-        const video = await Video.findOneAndUpdate(
-            { _id: req.params.id, username: req.username },
-            { title, description },
-            { new: true }
-        );
-        if (!video) return res.status(404).json({ error: 'Video not found' });
-        res.status(200).json(video);
-    } catch (error) {
-        console.error('Error updating video metadata:', error);
-        res.status(500).json({ error: 'Failed to update video metadata' });
-    }
-});
-
-app.listen(PORT, () => console.log('StorageMgmtServ running on port 3001'));
+app.listen(PORT, () => console.log(`StorageMgmtServ running on port ${PORT}`));

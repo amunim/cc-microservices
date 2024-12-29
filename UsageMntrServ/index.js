@@ -1,19 +1,21 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
+const cors = require('cors'); // Import CORS middleware
 require('dotenv').config();
 
-const PORT = process.env.PORT || 3002
+const PORT = process.env.PORT || 3002;
 const app = express();
+app.use(cors());
 app.use(express.json());
-
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
 
+// Usage schema
 const usageSchema = new mongoose.Schema({
     username: String,
-    date: { type: Date, default: () => new Date().toISOString().split('T')[0] }, // Store only the date
+    date: { type: String, default: () => new Date().toISOString().split('T')[0] }, // Store only the date as a string
     usedBandwidth: { type: Number, default: 0 }, // Daily usage in MB
     totalUsedBandwidth: { type: Number, default: 0 }, // Total usage across all days in MB
 });
@@ -30,6 +32,7 @@ const authenticate = (req, res, next) => {
         req.username = decoded.username;
         next();
     } catch (err) {
+        console.error('Authentication error:', err);
         res.status(403).json({ error: 'Invalid token' });
     }
 };
@@ -131,4 +134,5 @@ app.get('/usage', authenticate, async (req, res) => {
     }
 });
 
-app.listen(PORT, () => console.log('UsageMntrServ running on port 3002'));
+// Start the server
+app.listen(PORT, () => console.log(`UsageMntrServ running on port ${PORT}`));

@@ -1,12 +1,14 @@
-// server.js
 const express = require('express');
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const cors = require('cors');
 require('dotenv').config();
 
-const PORT = process.env.PORT || 3005
+const PORT = process.env.PORT || 3005;
 const app = express();
+
+app.use(cors());
 app.use(express.json());
 
 // Connect to MongoDB
@@ -40,15 +42,9 @@ app.post('/register', async (req, res) => {
     } catch (error) {
         if (error.code === 11000) {
             // Handle duplicate key error
-            if (error.keyValue.username) {
-                return res.status(400).json({ error: 'Username is already taken' });
-            }
-            if (error.keyValue.phone) {
-                return res.status(400).json({ error: 'Phone number is already registered' });
-            }
-            if (error.keyValue.email) {
-                return res.status(400).json({ error: 'Email is already registered' });
-            }
+            const duplicateField = Object.keys(error.keyValue)[0];
+            const errorMessage = `${duplicateField.charAt(0).toUpperCase() + duplicateField.slice(1)} is already registered`;
+            return res.status(400).json({ error: errorMessage });
         }
         console.error('Error registering user:', error);
         res.status(500).json({ error: 'Failed to register user' });
@@ -95,6 +91,7 @@ const authenticate = (req, res, next) => {
         req.userId = decoded.id;
         next();
     } catch (err) {
+        console.error('Authentication error:', err);
         res.status(403).json({ error: 'Invalid token' });
     }
 };
@@ -119,4 +116,5 @@ app.patch('/update-password', authenticate, async (req, res) => {
     }
 });
 
-app.listen(PORT, () => console.log('UserAccMgmtServ running on port 3005'));
+// Start the server
+app.listen(PORT, () => console.log(`UserAccMgmtServ running on port ${PORT}`));
