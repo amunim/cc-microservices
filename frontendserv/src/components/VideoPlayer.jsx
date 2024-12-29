@@ -1,8 +1,7 @@
-// src/components/VideoPlayer.js
 import React, { useEffect, useRef, useState } from 'react';
 import { getVideoDetails } from '../api/api';
 
-const VideoPlayer = ({ videoId, onClose, token, onNext, onPrevious }) => {
+const VideoPlayer = ({ videoId, token, onClose, onNext, onPrevious }) => {
   const videoRef = useRef(null);
   const [videoDetails, setVideoDetails] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
@@ -20,7 +19,7 @@ const VideoPlayer = ({ videoId, onClose, token, onNext, onPrevious }) => {
   useEffect(() => {
     const fetchVideoDetails = async () => {
       try {
-        const { data } = await getVideoDetails(videoId);
+        const { data } = await getVideoDetails(videoId, token);
         setVideoDetails(data);
       } catch (err) {
         console.error('Failed to fetch video details:', err);
@@ -28,7 +27,7 @@ const VideoPlayer = ({ videoId, onClose, token, onNext, onPrevious }) => {
     };
 
     fetchVideoDetails();
-  }, [videoId]);
+  }, [videoId, token]);
 
   return (
     <div
@@ -39,26 +38,27 @@ const VideoPlayer = ({ videoId, onClose, token, onNext, onPrevious }) => {
         width: '100vw',
         height: '100vh',
         backgroundColor: 'black',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
         zIndex: 1000,
+        overflow: 'hidden',
+        display: 'flex',
         flexDirection: 'column',
       }}
     >
+      {/* Video */}
       <video
         ref={videoRef}
         src={videoDetails?.url}
-        controls={false}
         autoPlay
+        loop
+        onClick={handleVideoClick}
         style={{
           width: '100%',
           height: '100%',
           objectFit: 'cover',
-          maxHeight: '100vh',
         }}
-        onClick={handleVideoClick}
       />
+
+      {/* Video Info */}
       <div
         style={{
           position: 'absolute',
@@ -72,9 +72,10 @@ const VideoPlayer = ({ videoId, onClose, token, onNext, onPrevious }) => {
           style={{
             display: 'flex',
             alignItems: 'center',
-            marginBottom: '10px',
+            marginBottom: 10,
           }}
         >
+          {/* User Avatar */}
           <div
             style={{
               width: 40,
@@ -84,18 +85,20 @@ const VideoPlayer = ({ videoId, onClose, token, onNext, onPrevious }) => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '20px',
+              fontSize: 20,
               fontWeight: 'bold',
               color: 'white',
-              marginRight: '10px',
+              marginRight: 10,
             }}
           >
             {videoDetails?.username?.charAt(0).toUpperCase() || 'U'}
           </div>
-          <h3>{videoDetails?.title || 'Loading...'}</h3>
+          <h3 style={{ margin: 0 }}>{videoDetails?.title || 'Loading...'}</h3>
         </div>
-        <p>{videoDetails?.description || ''}</p>
+        <p style={{ margin: 0 }}>{videoDetails?.description || ''}</p>
       </div>
+
+      {/* Close Button */}
       <div
         style={{
           position: 'absolute',
@@ -108,6 +111,36 @@ const VideoPlayer = ({ videoId, onClose, token, onNext, onPrevious }) => {
         onClick={onClose}
       >
         ✕
+      </div>
+
+      {/* Navigation Buttons */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: 10,
+          transform: 'translateY(-50%)',
+          color: 'white',
+          cursor: 'pointer',
+          fontSize: 30,
+        }}
+        onClick={onPrevious}
+      >
+        ◀
+      </div>
+      <div
+        style={{
+          position: 'absolute',
+          top: '50%',
+          right: 10,
+          transform: 'translateY(-50%)',
+          color: 'white',
+          cursor: 'pointer',
+          fontSize: 30,
+        }}
+        onClick={onNext}
+      >
+        ▶
       </div>
     </div>
   );

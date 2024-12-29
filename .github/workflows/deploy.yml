@@ -59,9 +59,6 @@ jobs:
       REPO_NAME: us-docker-repo
       KUBECONFIG_PATH: /tmp/kubeconfig
 
-    outputs:
-      usagemntr_url: ${{ steps.get_usagemntr_url.outputs.url }}
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -93,36 +90,20 @@ jobs:
             --from-literal=jwt-secret=${{ secrets.JWT_SECRET }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Deploy and Restart UsageMntrServ
+      - name: Deploy and Restart All Services
         run: |
+          # Deploy UsageMntrServ
           sed "s|{{IMAGE}}|${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/usagemntrserv:latest|g" UsageMntrServ/usagemntrserv-deployment.yaml | kubectl apply -f -
           kubectl apply -f UsageMntrServ/usagemntrserv-service.yaml
           kubectl rollout restart deployment/usagemntrserv
 
-      - name: Wait for UsageMntrServ External IP
-        id: get_usagemntr_url
-        run: |
-          for i in {1..30}; do
-            USAGE_MNTR_URL=$(kubectl get svc usagemntrserv -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-            if [[ -n "$USAGE_MNTR_URL" ]]; then break; fi
-            sleep 10
-          done
-          if [[ -z "$USAGE_MNTR_URL" ]]; then
-            echo "Error: UsageMntrServ IP not assigned after waiting."
-            exit 1
-          fi
-          echo "::set-output name=url::http://$USAGE_MNTR_URL"
-
-      - name: Deploy and Restart UserAccMgmtServ
-        run: |
+          # Deploy UserAccMgmtServ
           sed "s|{{IMAGE}}|${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/useraccmgmtserv:latest|g" UserAccMgmtServ/useraccmgmtserv-deployment.yaml | kubectl apply -f -
           kubectl apply -f UserAccMgmtServ/useraccmgmtserv-service.yaml
           kubectl rollout restart deployment/useraccmgmtserv
 
-      - name: Deploy and Restart StorageMgmtServ with UsageMntrServ URL
-        run: |
-          sed "s|{{IMAGE}}|${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/storagemgmtserv:latest|g" StorageMgmtServ/storagemgmtserv-deployment.yaml | \
-          sed "s|{{USAGE_MNTR_URL}}|${{ steps.get_usagemntr_url.outputs.url }}|g" | kubectl apply -f -
+          # Deploy StorageMgmtServ
+          sed "s|{{IMAGE}}|${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/storagemgmtserv:latest|g" StorageMgmtServ/storagemgmtserv-deployment.yaml | kubectl apply -f -
           kubectl apply -f StorageMgmtServ/storagemgmtserv-service.yaml
           kubectl rollout restart deployment/storagemgmtserv
 
@@ -161,8 +142,6 @@ jobs:
 
       - name: Wait for External IPs and Log URLs
         run: |
-          USAGE_MNTR_URL=${{ needs.deploy_to_kubernetes.outputs.usagemntr_url }}
-
           for i in {1..30}; do
             USER_ACC_MGMT_URL=$(kubectl get svc useraccmgmtserv -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
             if [[ -n "$USER_ACC_MGMT_URL" ]]; then break; fi
@@ -183,7 +162,7 @@ jobs:
             exit 1
           fi
 
-          echo "UsageMntrServ: $USAGE_MNTR_URL"
+          echo "Deployed Service URLs:"
           echo "UserAccMgmtServ: http://$USER_ACC_MGMT_URL"
           echo "StorageMgmtServ: http://$STORAGE_MGMT_URL"
 

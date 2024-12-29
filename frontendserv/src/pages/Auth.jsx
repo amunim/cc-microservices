@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { registerUser, loginUser } from '../api/api';
+import { useAuth } from '../contexts/AuthContext';
 import { Box, TextField, Button, Typography, Tabs, Tab, Avatar } from '@mui/material';
 import LockIcon from '@mui/icons-material/Lock';
 
-const Auth = ({ onLogin }) => {
+const Auth = () => {
+  const { setToken } = useAuth(); // Access the setToken function from context
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -14,7 +16,8 @@ const Auth = ({ onLogin }) => {
   const handleLogin = async () => {
     try {
       const { data } = await loginUser({ username, password });
-      onLogin?.(data.token);
+      setToken(data.token); // Store the token in context
+      alert('Login successful!');
     } catch (err) {
       console.log(err);
       alert('Login failed!');
