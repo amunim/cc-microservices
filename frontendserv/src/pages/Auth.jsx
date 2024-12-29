@@ -3,6 +3,7 @@ import { registerUser, loginUser } from '../api/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Box, TextField, Button, Typography, Tabs, Tab, Avatar } from '@mui/material';
 import LockIcon from '@mui/icons-material/Lock';
+import { useNavigate } from "react-router-dom";
 
 const Auth = () => {
   const { setToken } = useAuth(); // Access the setToken function from context
@@ -12,12 +13,13 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [tabIndex, setTabIndex] = useState(0);
+  const navigate = useNavigate();
 
   const handleLogin = async () => {
     try {
       const { data } = await loginUser({ username, password });
       setToken(data.token); // Store the token in context
-      alert('Login successful!');
+      navigate('/')
     } catch (err) {
       console.log(err);
       alert('Login failed!');
@@ -26,7 +28,7 @@ const Auth = () => {
 
   const handleRegister = async () => {
     try {
-      const { data } = await registerUser({ username, password, name, phone, email });
+      await registerUser({ username, password, name, phone, email });
       alert('Registration successful!');
       setTabIndex(0); // Switch to login tab after successful registration
     } catch (err) {

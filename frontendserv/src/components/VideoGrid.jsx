@@ -8,7 +8,8 @@ const VideoGrid = ({ videos, onVideoClick }) => (
         <Card onClick={() => onVideoClick(video._id)}>
           <CardMedia
             component="img"
-            image={video.thumbnail || 'https://via.placeholder.com/720x1280'}
+            style={{cursor: 'pointer'}}
+            image={video.thumbnail || '/placeholder.svg'}
             alt={video.title}
             sx={{ aspectRatio: '9/16' }}
           />

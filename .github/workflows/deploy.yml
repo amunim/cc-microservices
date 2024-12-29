@@ -31,7 +31,6 @@ jobs:
         uses: google-github-actions/setup-gcloud@v1
         with:
           project_id: ${{ env.PROJECT_ID }}
-          export_default_credentials: true
 
       - name: Authenticate Docker with Artifact Registry
         run: |
@@ -47,6 +46,9 @@ jobs:
 
           docker build -t ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/storagemgmtserv:latest ./StorageMgmtServ
           docker push ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/storagemgmtserv:latest
+
+          docker build -t ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/frontendserv:latest ./frontendserv
+          docker push ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/frontendserv:latest
 
   deploy_to_kubernetes:
     runs-on: ubuntu-latest
@@ -72,7 +74,6 @@ jobs:
         uses: google-github-actions/setup-gcloud@v1
         with:
           project_id: ${{ env.PROJECT_ID }}
-          export_default_credentials: true
 
       - name: Install GKE Auth Plugin
         run: |
@@ -85,52 +86,103 @@ jobs:
 
       - name: Deploy Secrets to Kubernetes
         run: |
+          # Deploy service-specific secrets
           kubectl create secret generic service-secrets \
             --from-literal=mongo-uri=${{ secrets.MONGO_URI }} \
             --from-literal=jwt-secret=${{ secrets.JWT_SECRET }} \
             --dry-run=client -o yaml | kubectl apply -f -
-          
-          # Create a secret for Google Application Credentials
-          echo "${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}" > gcp-key.json
+
+          # Create a secret for Google Application Credentials using GCP_BASE64
+          echo "${{ secrets.GCP_BASE64 }}" | base64 --decode > gcp-key.json
           kubectl create secret generic gac-keys --from-file=key.json=gcp-key.json --dry-run=client -o yaml | kubectl apply -f -
           rm gcp-key.json
 
-      - name: Deploy and Restart UsageMntrServ
+      - name: Deploy and Restart All Services
         run: |
+          # Deploy UsageMntrServ
           sed "s|{{IMAGE}}|${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/usagemntrserv:latest|g" UsageMntrServ/usagemntrserv-deployment.yaml | kubectl apply -f -
           kubectl apply -f UsageMntrServ/usagemntrserv-service.yaml
           kubectl rollout restart deployment/usagemntrserv
 
-      - name: Wait for UsageMntrServ External IP
-        id: get_usagemntr_url
-        run: |
+          # Wait for UsageMntrServ External IP
           for i in {1..30}; do
             USAGE_MNTR_URL=$(kubectl get svc usagemntrserv -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
             if [[ -n "$USAGE_MNTR_URL" ]]; then break; fi
             sleep 10
           done
           if [[ -z "$USAGE_MNTR_URL" ]]; then
-            echo "Error: usagemntrserv IP not assigned after waiting."
+            echo "Error: UsageMntrServ IP not assigned after waiting."
             exit 1
           fi
           echo "USAGE_MNTR_URL=http://$USAGE_MNTR_URL" >> $GITHUB_ENV
 
-      - name: Deploy and Restart UserAccMgmtServ
-        run: |
+          # Deploy UserAccMgmtServ
           sed "s|{{IMAGE}}|${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/useraccmgmtserv:latest|g" UserAccMgmtServ/useraccmgmtserv-deployment.yaml | kubectl apply -f -
           kubectl apply -f UserAccMgmtServ/useraccmgmtserv-service.yaml
           kubectl rollout restart deployment/useraccmgmtserv
 
-      - name: Deploy and Restart StorageMgmtServ with UsageMntrServ URL
-        run: |
+          # Wait for UserAccMgmtServ External IP
+          for i in {1..30}; do
+            USER_ACC_MGMT_URL=$(kubectl get svc useraccmgmtserv -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            if [[ -n "$USER_ACC_MGMT_URL" ]]; then break; fi
+            sleep 10
+          done
+          if [[ -z "$USER_ACC_MGMT_URL" ]]; then
+            echo "Error: UserAccMgmtServ IP not assigned after waiting."
+            exit 1
+          fi
+          echo "USER_ACC_MGMT_URL=http://$USER_ACC_MGMT_URL" >> $GITHUB_ENV
+
+          # Deploy StorageMgmtServ with UsageMntrServ URL
           sed "s|{{IMAGE}}|${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/storagemgmtserv:latest|g" StorageMgmtServ/storagemgmtserv-deployment.yaml | \
-          sed "s|{{USAGE_MNTR_URL}}|$USAGE_MNTR_URL|g" | kubectl apply -f -
+          sed "s|{{USAGE_MONITORING_SERVICE_URL}}|$USAGE_MNTR_URL|g" | kubectl apply -f -
           kubectl apply -f StorageMgmtServ/storagemgmtserv-service.yaml
           kubectl rollout restart deployment/storagemgmtserv
 
-      - name: Deploy Ingress
+          # Wait for StorageMgmtServ External IP
+          for i in {1..30}; do
+            STORAGE_MGMT_URL=$(kubectl get svc storagemgmtserv -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            if [[ -n "$STORAGE_MGMT_URL" ]]; then break; fi
+            sleep 10
+          done
+          if [[ -z "$STORAGE_MGMT_URL" ]]; then
+            echo "Error: StorageMgmtServ IP not assigned after waiting."
+            exit 1
+          fi
+          echo "STORAGE_MGMT_URL=http://$STORAGE_MGMT_URL" >> $GITHUB_ENV
+
+          # Deploy Frontend with all Service URLs
+          sed -e "s|{{REACT_APP_STORAGE_SERVICE_URL}}|http://$STORAGE_MGMT_URL|g" \
+              -e "s|{{REACT_APP_USAGE_SERVICE_URL}}|http://$USAGE_MNTR_URL|g" \
+              -e "s|{{REACT_APP_USER_SERVICE_URL}}|http://$USER_ACC_MGMT_URL|g" \
+              frontendserv/frontendserv-deployment.yaml | kubectl apply -f -
+          kubectl apply -f frontendserv/frontendserv-service.yaml
+          kubectl rollout restart deployment/frontendserv
+
+          # Wait for FrontendServ External IP
+          for i in {1..30}; do
+            FRONTEND_URL=$(kubectl get svc frontendserv -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            if [[ -n "$FRONTEND_URL" ]]; then break; fi
+            sleep 10
+          done
+          if [[ -z "$FRONTEND_URL" ]]; then
+            echo "Error: FrontendServ IP not assigned after waiting."
+            exit 1
+          fi
+          echo "FRONTEND_URL=http://$FRONTEND_URL" >> $GITHUB_ENV
+
+      - name: Wait for External IPs
         run: |
-          kubectl apply -f k8s/ingress.yaml
+          for i in {1..30}; do
+            FRONTEND_URL=$(kubectl get svc frontendserv -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            if [[ -n "$FRONTEND_URL" ]]; then break; fi
+            sleep 10
+          done
+          if [[ -z "$FRONTEND_URL" ]]; then
+            echo "Error: FrontendServ IP not assigned after waiting."
+            exit 1
+          fi
+          echo "FRONTEND_URL=http://$FRONTEND_URL" >> $GITHUB_ENV
 
   log_and_update:
     runs-on: ubuntu-latest
@@ -150,45 +202,14 @@ jobs:
         uses: google-github-actions/setup-gcloud@v1
         with:
           project_id: ${{ env.PROJECT_ID }}
-          export_default_credentials: true
 
-      - name: Install GKE Auth Plugin
+      - name: Load Environment Variables
         run: |
-          gcloud components install gke-gcloud-auth-plugin
-          export USE_GKE_GCLOUD_AUTH_PLUGIN=True
+          source $GITHUB_ENV
 
-      - name: Configure Kubernetes Access
+      - name: Log Service URLs
         run: |
-          gcloud container clusters get-credentials microservices-cluster --region ${{ env.REGION }} --project ${{ env.PROJECT_ID }}
-
-      - name: Wait for External IPs and Log URLs
-        run: |
-          for i in {1..30}; do
-            USER_ACC_MGMT_URL=$(kubectl get svc useraccmgmtserv -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-            if [[ -n "$USER_ACC_MGMT_URL" ]]; then break; fi
-            sleep 10
-          done
-          if [[ -z "$USER_ACC_MGMT_URL" ]]; then
-            echo "Error: UserAccMgmtServ IP not assigned after waiting."
-            exit 1
-          fi
-
-          for i in {1..30}; do
-            STORAGE_MGMT_URL=$(kubectl get svc storagemgmtserv -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-            if [[ -n "$STORAGE_MGMT_URL" ]]; then break; fi
-            sleep 10
-          done
-          if [[ -z "$STORAGE_MGMT_URL" ]]; then
-            echo "Error: StorageMgmtServ IP not assigned after waiting."
-            exit 1
-          fi
-
-          echo "Deployed Service URLs:"
-          echo "UsageMntrServ: ${{ env.USAGE_MNTR_URL }}"
+          echo "UsageMntrServ: http://$USAGE_MNTR_URL"
           echo "UserAccMgmtServ: http://$USER_ACC_MGMT_URL"
           echo "StorageMgmtServ: http://$STORAGE_MGMT_URL"
-
-          if [[ $GITHUB_EVENT_NAME == "pull_request" ]]; then
-            COMMENT_BODY="### Deployed URLs\n- [UsageMntrServ](${{ env.USAGE_MNTR_URL }})\n- [UserAccMgmtServ](http://$USER_ACC_MGMT_URL)\n- [StorageMgmtServ](http://$STORAGE_MGMT_URL)"
-            echo "$COMMENT_BODY" | gh pr comment ${{ github.event.pull_request.number }} --body -
-          fi
+          echo "FrontendServ: http://$FRONTEND_URL"
