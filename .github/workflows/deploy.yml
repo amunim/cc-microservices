@@ -202,6 +202,15 @@ jobs:
         uses: google-github-actions/setup-gcloud@v1
         with:
           project_id: ${{ env.PROJECT_ID }}
+          
+      - name: Install GKE Auth Plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin
+          export USE_GKE_GCLOUD_AUTH_PLUGIN=True
+
+      - name: Configure Kubernetes Access
+        run: |
+          gcloud container clusters get-credentials microservices-cluster --region ${{ env.REGION }} --project ${{ env.PROJECT_ID }}
 
       - name: Fetch Service URLs
         run: |
