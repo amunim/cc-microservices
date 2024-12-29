@@ -34,3 +34,13 @@ spec:
           value: "cc-project-amunim"
         - name: USAGE_MONITORING_SERVICE_URL
           value: "{{USAGE_MNTR_URL}}" # Placeholder
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /var/secrets/google/key.json # Path to the credentials file
+        volumeMounts:
+        - name: google-cloud-keys
+          mountPath: /var/secrets/google
+          readOnly: true
+      volumes:
+      - name: google-cloud-keys
+        secret:
+          secretName: gac-keys # Name of the secret containing the Google Cloud credentials
