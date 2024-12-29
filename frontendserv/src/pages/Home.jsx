@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import VideoGrid from '../components/VideoGrid';
 import VideoPlayer from '../components/VideoPlayer';
 import { getAllVideos } from '../api/api';
+import { AuthContext } from '../contexts/AuthContext';
 
-const Home = ({ token }) => {
+const Home = () => {
+  const { token } = useContext(AuthContext); // Use AuthContext to get the token
   const [videos, setVideos] = useState([]);
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -21,7 +23,13 @@ const Home = ({ token }) => {
         setLoading(false);
       }
     };
-    fetchVideos();
+
+    if (token) {
+      fetchVideos();
+    } else {
+      setError('Authentication required. Please log in.');
+      setLoading(false);
+    }
   }, [token]);
 
   return (

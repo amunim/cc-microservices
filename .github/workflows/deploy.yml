@@ -90,20 +90,36 @@ jobs:
             --from-literal=jwt-secret=${{ secrets.JWT_SECRET }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Deploy and Restart All Services
+      - name: Deploy and Restart UsageMntrServ
         run: |
-          # Deploy UsageMntrServ
           sed "s|{{IMAGE}}|${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/usagemntrserv:latest|g" UsageMntrServ/usagemntrserv-deployment.yaml | kubectl apply -f -
           kubectl apply -f UsageMntrServ/usagemntrserv-service.yaml
           kubectl rollout restart deployment/usagemntrserv
 
-          # Deploy UserAccMgmtServ
+      - name: Wait for UsageMntrServ External IP
+        id: get_usagemntr_url
+        run: |
+          for i in {1..30}; do
+            USAGE_MNTR_URL=$(kubectl get svc usagemntrserv -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            if [[ -n "$USAGE_MNTR_URL" ]]; then break; fi
+            sleep 10
+          done
+          if [[ -z "$USAGE_MNTR_URL" ]]; then
+            echo "Error: usagemntrserv IP not assigned after waiting."
+            exit 1
+          fi
+          echo "USAGE_MNTR_URL=http://$USAGE_MNTR_URL" >> $GITHUB_ENV
+
+      - name: Deploy and Restart UserAccMgmtServ
+        run: |
           sed "s|{{IMAGE}}|${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/useraccmgmtserv:latest|g" UserAccMgmtServ/useraccmgmtserv-deployment.yaml | kubectl apply -f -
           kubectl apply -f UserAccMgmtServ/useraccmgmtserv-service.yaml
           kubectl rollout restart deployment/useraccmgmtserv
 
-          # Deploy StorageMgmtServ
-          sed "s|{{IMAGE}}|${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/storagemgmtserv:latest|g" StorageMgmtServ/storagemgmtserv-deployment.yaml | kubectl apply -f -
+      - name: Deploy and Restart StorageMgmtServ with UsageMntrServ URL
+        run: |
+          sed "s|{{IMAGE}}|${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/storagemgmtserv:latest|g" StorageMgmtServ/storagemgmtserv-deployment.yaml | \
+          sed "s|{{USAGE_MNTR_URL}}|$USAGE_MNTR_URL|g" | kubectl apply -f -
           kubectl apply -f StorageMgmtServ/storagemgmtserv-service.yaml
           kubectl rollout restart deployment/storagemgmtserv
 
@@ -153,16 +169,6 @@ jobs:
           fi
 
           for i in {1..30}; do
-            USAGE_MNTR_URL=$(kubectl get svc usagemntrserv -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-            if [[ -n "$USAGE_MNTR_URL" ]]; then break; fi
-            sleep 10
-          done
-          if [[ -z "$USAGE_MNTR_URL" ]]; then
-            echo "Error: usagemntrserv IP not assigned after waiting."
-            exit 1
-          fi
-
-          for i in {1..30}; do
             STORAGE_MGMT_URL=$(kubectl get svc storagemgmtserv -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
             if [[ -n "$STORAGE_MGMT_URL" ]]; then break; fi
             sleep 10
@@ -173,11 +179,11 @@ jobs:
           fi
 
           echo "Deployed Service URLs:"
-          echo "UsageMntrServ: http://$USAGE_MNTR_URL"
+          echo "UsageMntrServ: ${{ env.USAGE_MNTR_URL }}"
           echo "UserAccMgmtServ: http://$USER_ACC_MGMT_URL"
           echo "StorageMgmtServ: http://$STORAGE_MGMT_URL"
 
           if [[ $GITHUB_EVENT_NAME == "pull_request" ]]; then
-            COMMENT_BODY="### Deployed URLs\n- [UsageMntrServ]($USAGE_MNTR_URL)\n- [UserAccMgmtServ](http://$USER_ACC_MGMT_URL)\n- [StorageMgmtServ](http://$STORAGE_MGMT_URL)"
+            COMMENT_BODY="### Deployed URLs\n- [UsageMntrServ](${{ env.USAGE_MNTR_URL }})\n- [UserAccMgmtServ](http://$USER_ACC_MGMT_URL)\n- [StorageMgmtServ](http://$STORAGE_MGMT_URL)"
             echo "$COMMENT_BODY" | gh pr comment ${{ github.event.pull_request.number }} --body -
           fi
