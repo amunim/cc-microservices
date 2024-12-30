@@ -154,6 +154,7 @@ jobs:
           # Deploy Frontend with all Service URLs
           sed -e "s|{{REACT_APP_STORAGE_SERVICE_URL}}|http://$STORAGE_MGMT_URL|g" \
               -e "s|{{REACT_APP_USAGE_SERVICE_URL}}|http://$USAGE_MNTR_URL|g" \
+              -e "s|{{IMAGE}}|${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/frontendserv:latest|g" \
               -e "s|{{REACT_APP_USER_SERVICE_URL}}|http://$USER_ACC_MGMT_URL|g" \
               frontendserv/frontendserv-deployment.yaml | kubectl apply -f -
           kubectl apply -f frontendserv/frontendserv-service.yaml
