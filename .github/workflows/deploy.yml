@@ -139,7 +139,7 @@ jobs:
 
           # Deploy StorageMgmtServ with UsageMntrServ URL
           sed "s|{{IMAGE}}|${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/storagemgmtserv:latest|g" StorageMgmtServ/storagemgmtserv-deployment.yaml | \
-          sed "s|{{USAGE_MNTR_URL}}|$USAGE_MNTR_URL|g" | kubectl apply -f -
+          sed "s|{{USAGE_MNTR_URL}}|http://$USAGE_MNTR_URL|g" | kubectl apply -f -
           kubectl apply -f StorageMgmtServ/storagemgmtserv-service.yaml
           kubectl rollout restart deployment/storagemgmtserv
 
