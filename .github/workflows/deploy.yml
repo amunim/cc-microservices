@@ -78,7 +78,7 @@ jobs:
       - name: Authenticate Docker with Artifact Registry
         run: |
           gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://${{ env.REPO_HOST }}
-  
+
       - name: Install GKE Auth Plugin
         run: |
           gcloud components install gke-gcloud-auth-plugin
@@ -155,6 +155,10 @@ jobs:
           fi
           echo "STORAGE_MGMT_URL=http://$STORAGE_MGMT_URL" >> $GITHUB_ENV
             
+          echo "REACT_APP_STORAGE_SERVICE_URL=$STORAGE_MGMT_URL" > frontendserv/.env
+          echo "REACT_APP_USAGE_SERVICE_URL=$USAGE_MNTR_URL" >> frontendserv/.env
+          echo "REACT_APP_USER_SERVICE_URL=$USER_ACC_MGMT_URL" >> frontendserv/.env
+
           docker build --build-arg REACT_APP_STORAGE_SERVICE_URL=$STORAGE_MGMT_URL \
               --build-arg REACT_APP_USAGE_SERVICE_URL=$USAGE_MNTR_URL \
               --build-arg REACT_APP_USER_SERVICE_URL=$USER_ACC_MGMT_URL \
@@ -214,7 +218,7 @@ jobs:
         uses: google-github-actions/setup-gcloud@v1
         with:
           project_id: ${{ env.PROJECT_ID }}
-          
+
       - name: Install GKE Auth Plugin
         run: |
           gcloud components install gke-gcloud-auth-plugin
@@ -274,4 +278,3 @@ jobs:
           echo "UserAccMgmtServ: http://$USER_ACC_MGMT_URL"
           echo "StorageMgmtServ: http://$STORAGE_MGMT_URL"
           echo "FrontendServ: http://$FRONTEND_URL"
-        
