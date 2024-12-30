@@ -47,8 +47,8 @@ jobs:
           docker build -t ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/storagemgmtserv:latest ./StorageMgmtServ
           docker push ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/storagemgmtserv:latest
 
-          docker build -t ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/frontendserv:latest ./frontendserv
-          docker push ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/frontendserv:latest
+          # docker build -t ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/frontendserv:latest ./frontendserv
+          # docker push ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/frontendserv:latest
 
   deploy_to_kubernetes:
     runs-on: ubuntu-latest
