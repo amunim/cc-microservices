@@ -150,6 +150,13 @@ jobs:
             exit 1
           fi
           echo "STORAGE_MGMT_URL=http://$STORAGE_MGMT_URL" >> $GITHUB_ENV
+            
+          docker build --build-arg REACT_APP_STORAGE_SERVICE_URL=$STORAGE_MGMT_URL \
+              --build-arg REACT_APP_USAGE_SERVICE_URL=$USAGE_MNTR_URL \
+              --build-arg REACT_APP_USER_SERVICE_URL=$USER_ACC_MGMT_URL \
+              -t ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/frontendserv:latest ./frontendserv
+          docker push ${{ env.REPO_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/frontendserv:latest
+
 
           # Deploy Frontend with all Service URLs
           sed -e "s|{{REACT_APP_STORAGE_SERVICE_URL}}|http://$STORAGE_MGMT_URL|g" \
