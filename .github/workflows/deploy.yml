@@ -155,9 +155,9 @@ jobs:
           fi
           echo "STORAGE_MGMT_URL=http://$STORAGE_MGMT_URL" >> $GITHUB_ENV
             
-          echo "REACT_APP_STORAGE_SERVICE_URL=$STORAGE_MGMT_URL" > frontendserv/.env
-          echo "REACT_APP_USAGE_SERVICE_URL=$USAGE_MNTR_URL" >> frontendserv/.env
-          echo "REACT_APP_USER_SERVICE_URL=$USER_ACC_MGMT_URL" >> frontendserv/.env
+          echo "REACT_APP_STORAGE_SERVICE_URL=http://$STORAGE_MGMT_URL" > frontendserv/.env
+          echo "REACT_APP_USAGE_SERVICE_URL=http://$USAGE_MNTR_URL" >> frontendserv/.env
+          echo "REACT_APP_USER_SERVICE_URL=http://$USER_ACC_MGMT_URL" >> frontendserv/.env
 
           docker build --build-arg REACT_APP_STORAGE_SERVICE_URL=$STORAGE_MGMT_URL \
               --build-arg REACT_APP_USAGE_SERVICE_URL=$USAGE_MNTR_URL \
