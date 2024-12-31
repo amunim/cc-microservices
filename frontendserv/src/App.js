@@ -6,6 +6,7 @@ import Home from './pages/Home';
 import Auth from './pages/Auth';
 import Upload from './pages/Upload';
 import ProtectedRoute from './components/ProtectedRoute';
+import VideoDetail from './pages/VideoDetail';
 
 function App() {
   return (
@@ -27,6 +28,15 @@ function App() {
             element={
               <ProtectedRoute>
                 <Upload />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/videos/:id"
+            element={
+              <ProtectedRoute>
+                <VideoDetail />
               </ProtectedRoute>
             }
           />

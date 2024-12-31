@@ -9,6 +9,12 @@ export const loginUser = (credentials) => axios.post(`${USER_SERVICE_URL}/login`
 export const getUsageStats = (token) => axios.get(`${USAGE_SERVICE_URL}/usage`, {
   headers: { Authorization: `Bearer ${token}` },
 });
+
+export const getUserVideos = (token) =>
+  axios.get(`${STORAGE_SERVICE_URL}/user/videos`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
 export const uploadVideo = (formData, token) => axios.post(`${STORAGE_SERVICE_URL}/upload`, formData, {
   headers: { Authorization: `Bearer ${token}` },
 });
@@ -18,3 +24,7 @@ export const getAllVideos = (token) => axios.get(`${STORAGE_SERVICE_URL}/videos`
 export const getVideoDetails = (id, token) => axios.get(`${STORAGE_SERVICE_URL}/videos/${id}`, {
   headers: { Authorization: `Bearer ${token}` },
 });
+export const deleteVideo = (id, token) =>
+  axios.delete(`${STORAGE_SERVICE_URL}/videos/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });

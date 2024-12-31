@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from "react";
-import { Box, CircularProgress, Typography } from "@mui/material";
+import { Box, CircularProgress, Typography, AppBar, Toolbar, Button } from "@mui/material";
 import VideoGrid from "../components/VideoGrid";
 import VideoPlayer from "../components/VideoPlayer";
 import { getAllVideos } from "../api/api";
@@ -40,38 +40,69 @@ const Home = () => {
     }
   }, [token, logout, navigate]);
 
+  const handleLogout = () => {
+    logout();
+    navigate("/auth", { replace: true });
+  };
+
   return (
     <Box
       sx={{
         display: "flex",
         flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
         minHeight: "100vh",
         backgroundColor: "#f0f0f0",
-        padding: 2,
       }}
     >
-      {loading ? (
-        <CircularProgress sx={{ color: "#FF3B30" }} />
-      ) : error ? (
-        <Typography variant="h6" color="error">
-          {error}
-        </Typography>
-      ) : selectedVideo ? (
-        <VideoPlayer
-          videoId={selectedVideo}
-          token={token}
-          onClose={() => setSelectedVideo(null)}
-        />
-      ) : (
-        <>
-          <Typography variant="h4" sx={{ mb: 4, color: "#333" }}>
+      {/* Navbar */}
+      <AppBar position="static" style={{backgroundColor: "#FF1E0A"}}>
+        <Toolbar>
+          <Typography variant="h6" sx={{ flexGrow: 1, cursor: "pointer" }} onClick={() => navigate("/")}> 
             Video Library
           </Typography>
-          <VideoGrid videos={videos} onVideoClick={setSelectedVideo} />
-        </>
-      )}
+          {token && (
+            <Button color="inherit" onClick={() => navigate("/upload")}>Upload</Button>
+          )}
+          {token ? (
+            <Button color="inherit" onClick={handleLogout}>Logout</Button>
+          ) : (
+            <Button color="inherit" onClick={() => navigate("/auth")}>Login</Button>
+          )}
+        </Toolbar>
+      </AppBar>
+
+      {/* Main Content */}
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          flexGrow: 1,
+          padding: 2,
+        }}
+      >
+        {loading ? (
+          <CircularProgress sx={{ color: "#FF3B30" }} />
+        ) : error ? (
+          <Typography variant="h6" color="error">
+            {error}
+          </Typography>
+        ) : selectedVideo ? (
+          <VideoPlayer
+            videoId={selectedVideo}
+            token={token}
+            onClose={() => setSelectedVideo(null)}
+          />
+        ) : (
+          <>
+            <Typography variant="h4" sx={{ mb: 4, color: "#333" }}>
+              Video Library
+            </Typography>
+            <VideoGrid videos={videos} onVideoClick={setSelectedVideo} />
+          </>
+        )}
+      </Box>
     </Box>
   );
 };

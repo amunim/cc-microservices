@@ -155,6 +155,16 @@ app.post('/upload', authenticate, checkBandwidth, upload.single('video'), async 
 // Get all videos for a user
 app.get('/videos', authenticate, async (req, res) => {
     try {
+        const videos = await Video.find();
+        res.status(200).json(videos);
+    } catch (error) {
+        console.error('Error fetching videos:', error);
+        res.status(500).json({ error: 'Failed to fetch videos' });
+    }
+});
+
+app.get('/user/videos', authenticate, async (req, res) => {
+    try {
         const videos = await Video.find({ username: req.username });
         res.status(200).json(videos);
     } catch (error) {
@@ -180,7 +190,7 @@ app.options('/videos/:id', cors())
 app.delete('/videos/:id', authenticate, async (req, res) => {
     try {
         const video = await Video.findOneAndDelete({ _id: req.params.id, username: req.username });
-        if (!video) return res.status(404).json({ error: 'Video not found' });
+        if (!video) return res.status(200).json({ message: 'Video deleted successfully' });
 
         // Delete video from GCS
         await storage.bucket(bucketName).file(video.compressedName).delete();
@@ -217,4 +227,4 @@ app.patch('/videos/:id', authenticate, async (req, res) => {
     }
 });
 
-app.listen(PORT, () => console.log('StorageMgmtServ running on port 3001'));
+app.listen(PORT, () => console.log('StorageMgmtServ running on port ' + PORT));
