@@ -19,3 +19,5 @@ gcloud container clusters create microservices-cluster \
     --release-channel regular \
     --no-enable-ip-alias
 
+##Monitoring
+All logs are stored in GKE logs monitor, and load testing is done with loadtesting.js, you can monitor performance in GKE under high concurrency
